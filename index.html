@@ -351,24 +351,16 @@ let ADM=false;try{if(/[?&]admin/.test(location.search))localStorage.setItem('gat
 if(ADM)document.body.classList.add('adm');
 const listJSON=()=>{const d=cats.map(c=>[c.name||null,c.f,c.ty,c.pat]).concat(queue);return'{\n"mundo": '+JSON.stringify(WORLD)+',\n"gatos": [\n'+d.map(x=>JSON.stringify(x)).join(',\n')+'\n]\n}\n'};
 const byName=n=>{n=String(n||'').trim().replace(/^@/,'').toLowerCase();return cats.find(c=>c.name&&c.name.toLowerCase()===n)};
-function ghCfg(force){let c=null;try{c=JSON.parse(localStorage.getItem('gatos_gh')||'null')}catch(e){}
-  if(c&&!force)return c;
-  const repo=prompt('Repositório do GitHub (usuario/repositorio):',c?c.repo:'');if(!repo)return null;
-  const token=prompt('Token do GitHub (fine-grained, só este repo, permissão Contents: leitura e escrita). Fica salvo só neste aparelho:',c?c.token:'');if(!token)return null;
-  const path=prompt('Caminho do arquivo no repositório:',c?c.path:'gatos.json')||'gatos.json';
-  const rp=repo.trim().replace(/^https?:\/\/(www\.)?github\.com\//i,'').replace(/\.git$/i,'').replace(/^\/+|\/+$/g,''),tk=token.replace(/\s+/g,''),pt=path.trim().replace(/^\/+/,'')||'gatos.json';
-  if(!/^[\w.-]+\/[\w.-]+$/.test(rp)){toast('Repositório inválido. Use usuario/repositorio');return null}
-  if(!/^[A-Za-z0-9_]+$/.test(tk)){toast('O token tem caracteres estranhos. Copie de novo, só o token');return null}
-  c={repo:rp,token:tk,path:pt};try{localStorage.setItem('gatos_gh',JSON.stringify(c))}catch(e){}return c}
-async function publish(){const cf=ghCfg(false);if(!cf)return;toast('Publicando...');
-  const u='https://api.github.com/repos/'+cf.repo+'/contents/'+cf.path,H={Authorization:'Bearer '+cf.token,Accept:'application/vnd.github+json'};
-  try{let sha;const g=await fetch(u,{headers:H});if(g.ok)sha=(await g.json()).sha;else if(g.status!==404){toast('Erro '+g.status+' ao ler o GitHub. Confira repo e token (toque em GitHub)');return}
-    const b={message:'Atualiza lista de gatinhos',content:btoa(unescape(encodeURIComponent(listJSON())))};if(sha)b.sha=sha;
-    const p=await fetch(u,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify(b)});
-    if(p.ok)dirty=0;toast(p.ok?'Publicado! O site atualiza em ~1 minuto':'Erro '+p.status+' ao salvar. Confira o token')}
-  catch(e){toast('Falhou: '+((e&&e.message)||e)+'. Se for "Failed to fetch", algo está bloqueando o GitHub (bloqueador, VPN, rede)')}}
+async function publish(){let k='';try{k=localStorage.getItem('gatos_key')||''}catch(e){}
+  if(!k){k=(prompt('Senha de admin (a ADMIN_KEY que você criou na Vercel):')||'').trim();if(!k)return}
+  toast('Publicando...');
+  try{const r=await fetch('/api/publish',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':encodeURIComponent(k)},body:listJSON()});
+    if(r.ok){try{localStorage.setItem('gatos_key',k)}catch(e){}dirty=0;toast('Publicado! Já vale para todo mundo');return}
+    if(r.status===401){try{localStorage.removeItem('gatos_key')}catch(e){}toast('Senha errada. Toque em Publicar e digite de novo');return}
+    let m='';try{m=(await r.json()).erro}catch(e){}toast('Erro '+r.status+(m?': '+m:''))}
+  catch(e){toast('Falhou: '+((e&&e.message)||e))}}
 mtile('Seguidores','🚀','Publicar',publish,{main:1});
-mtile('Mais','🔑','GitHub',()=>{ghCfg(true)});mtile('Mais','📄','Copiar gatos.json',()=>copyText(listJSON(),'gatos.json copiado!'));
+mtile('Mais','🔑','Esquecer senha',()=>{try{localStorage.removeItem('gatos_key')}catch(e){}toast('Senha apagada deste aparelho')});mtile('Mais','📄','Copiar gatos.json',()=>copyText(listJSON(),'gatos.json copiado!'));
 
 
 // ---- placa com o nome do mundo ----
@@ -409,9 +401,8 @@ function openCM(c,x,y){cm.innerHTML='';const mkb=(t,fn,cls)=>{const b=document.c
   cm.hidden=false;const W=cm.offsetWidth,H=cm.offsetHeight;cm.style.left=Math.max(6,Math.min(x,innerWidth-W-6))+'px';cm.style.top=Math.max(6,Math.min(y,innerHeight-H-6))+'px'}
 cv.addEventListener('contextmenu',e=>{if(!ADM)return;e.preventDefault();const c=catAt(e.clientX,e.clientY);if(c)openCM(c,e.clientX,e.clientY);else{cm.hidden=true;if(signAt(e.clientX,e.clientY))editSign()}});
 addEventListener('pointerdown',e=>{if(!cm.hidden&&!cm.contains(e.target))cm.hidden=true},true);addEventListener('keydown',e=>{if(e.key==='Escape')cm.hidden=true});
-async function loadList(){try{const r=await fetch('gatos.json?'+Date.now(),{cache:'no-store'});if(r.ok){const j=await r.json(),a=Array.isArray(j)?j:(j&&j.gatos);
-  if(j&&typeof j.mundo==='string'&&j.mundo.trim())WORLD=j.mundo.trim().slice(0,40);
-  if(Array.isArray(a)&&a.length&&a.every(Array.isArray))return a}}catch(e){}return DATA}
+async function loadList(){for(const u of ['/api/gatos','gatos.json?'+Date.now()]){try{const r=await fetch(u,{cache:'no-store'});if(!r.ok)continue;const j=await r.json(),a=Array.isArray(j)?j:(j&&j.gatos);
+  if(Array.isArray(a)&&a.length&&a.every(Array.isArray)){if(j&&typeof j.mundo==='string'&&j.mundo.trim())WORLD=j.mundo.trim().slice(0,40);return a}}catch(e){}}return DATA}
 SHEET.onload=()=>{initSheet();resize();loadList().then(L=>{Rt=Math.max(9,Math.sqrt(L.length)*1.1+5);build();L.forEach(r=>spawn(r));last=performance.now();requestAnimationFrame(frame)})};SHEET.src=SHEET_SRC;
 </script>
 </body>
