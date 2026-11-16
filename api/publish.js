@@ -32,6 +32,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ erro: 'dados de gato inválidos' });
     gatos.push([nome, cor, tipo, listrado ? 1 : 0]);
   }
+  if (!process.env.BLOB_READ_WRITE_TOKEN)
+    return res.status(500).json({ erro: 'BLOB_READ_WRITE_TOKEN ausente: conecte o Blob ao projeto e faça um novo deploy' });
   const mundo = typeof b.mundo === 'string' ? b.mundo.trim().slice(0, 40) : '';
 
   const texto = '{\n"mundo": ' + JSON.stringify(mundo || 'Qual o nome deste mundo?') +
@@ -43,6 +45,6 @@ export default async function handler(req, res) {
     });
     return res.status(200).json({ ok: true, gatos: gatos.length });
   } catch (e) {
-    return res.status(500).json({ erro: 'não consegui gravar (o Blob está conectado ao projeto?)' });
+    return res.status(500).json({ erro: 'não consegui gravar: ' + String((e && e.message) || e).slice(0, 160) });
   }
 }
