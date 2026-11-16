@@ -128,7 +128,7 @@ function build(){M=Math.ceil(Rt*1.25)+2;G=new Uint8Array((2*M+1)**2);
 const land=(i,j)=>i>=-M&&i<=M&&j>=-M&&j<=M&&G[(j+M)*(2*M+1)+i+M]===1;
 const TY={n:{sp:1,hop:.08},b:{sp:1.5,hop:.3},g:{sp:.7,hop:.03},j:{sp:1,hop:.5},r:{sp:1,hop:.08}},DIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
 const camGrid=()=>({x:(camX/16+camY/8)/2,y:(camY/8-camX/16)/2});
-const freeTile=(i,j)=>land(i,j)&&land(i+1,j)&&land(i,j+1)&&land(i-1,j)&&land(i,j-1)&&(hsh(i+999,j-777)>=.06||i*i+j*j<=9);
+const freeTile=(i,j)=>land(i,j)&&land(i+1,j)&&land(i,j+1)&&land(i-1,j)&&land(i,j-1)&&(hsh(i+999,j-777)>=.06||i*i+j*j<=9)&&!(i===SIGN.x&&j===SIGN.y);
 function rndTile(){for(let t=0;t<60;t++){const a=rnd()*6.28,d=Math.sqrt(rnd())*(Rt-3),i=Math.round(Math.cos(a)*d),j=Math.round(Math.sin(a)*d);if(freeTile(i,j))return{x:i,y:j}}return{x:0,y:0}}
 function spot(){const c=camGrid();for(let t=0;t<30;t++){const i=Math.round(c.x+(rnd()-.5)*(4+t)),j=Math.round(c.y+(rnd()-.5)*(4+t));if(freeTile(i,j))return{x:i,y:j}}return rndTile()}
 function spawn(r,near){let a=rnd()*6.28,d=Math.sqrt(rnd())*Math.max(2,Rt-2),gx=Math.cos(a)*d,gy=Math.sin(a)*d;
@@ -203,11 +203,13 @@ function draw(t){
   for(const p of beds){const sx=(p.x-p.y)*16+OX,sy=(p.x+p.y)*8+OY;if(sx>-30&&sx<w+30&&sy>-10&&sy<h+30)ents.push({k:p.x+p.y-.4,s:BEDS[p.c],x:Math.round(sx-16),y:Math.round(sy-7)})}
   for(const p of bowls){const sx=(p.x-p.y)*16+OX,sy=(p.x+p.y)*8+OY;if(sx>-30&&sx<w+30&&sy>-10&&sy<h+30)ents.push({k:p.x+p.y-.4,s:BOWL,x:Math.round(sx-8),y:Math.round(sy-9)})}
   for(const c of cats){const sx=(c.gx-c.gy)*16+OX,sy=(c.gx+c.gy)*8+OY;if(sx>-30&&sx<w+30&&sy>-10&&sy<h+50)ents.push({k:c.gx+c.gy,c})}
+  {const sx=(SIGN.x-SIGN.y)*16+OX,sy=(SIGN.x+SIGN.y)*8+OY;if(sx>-40&&sx<w+40&&sy>-10&&sy<h+40)ents.push({k:SIGN.x+SIGN.y-.2,s:SIGNS,x:Math.round(sx-24),y:Math.round(sy-27)})}
   ents.sort((a,b)=>a.k-b.k);const lab=[];
   for(const e of ents){if(e.s)ctx.drawImage(e.s,e.x,e.y);else{drawCat(e.c,t);lab.push(e.c)}}
   if(night>.01){ctx.fillStyle='rgba(10,14,64,'+.55*night+')';ctx.fillRect(0,0,w,h)}
   lx.clearRect(0,0,lc.width,lc.height);
   if(wk)drawWx();
+  drawSign();
   const all=Z>=3;
   if(lab.length&&(all||follow)){const cx=w/2,cy=h/2,P=c=>[(c.gx-c.gy)*16+OX,(c.gx+c.gy)*8+OY],fs=Math.max(9,5+Z*1.2|0);let L;
     if(all){L=lab.slice().sort((a,b)=>{const p=P(a),q=P(b);return(p[0]-cx)**2+(p[1]-cy)**2-(q[0]-cx)**2-(q[1]-cy)**2}).slice(0,70);if(follow&&L.indexOf(follow)<0&&lab.indexOf(follow)>=0)L.push(follow)}
@@ -332,7 +334,7 @@ function copyWorld(){const d=cats.map(c=>[c.name||null,c.f,c.ty,c.pat]).concat(q
 // ---- mouse / toque ----
 const ptr=new Map();let drag=null,pd=0,wt=0;
 let lpT=0;cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptr.size===1)drag={x:e.clientX,y:e.clientY,m:false};else{drag=null;const[a,b]=[...ptr.values()];pd=Math.hypot(a.x-b.x,a.y-b.y)}
-  clearTimeout(lpT);if(ADM&&e.button!==2&&e.pointerType!=='mouse'&&ptr.size===1){lpT=setTimeout(()=>{if(drag&&!drag.m&&ptr.size===1){const c=catAt(e.clientX,e.clientY);if(c){drag=null;openCM(c,e.clientX,e.clientY)}}},550)}});
+  clearTimeout(lpT);if(ADM&&e.button!==2&&e.pointerType!=='mouse'&&ptr.size===1){lpT=setTimeout(()=>{if(drag&&!drag.m&&ptr.size===1){const c=catAt(e.clientX,e.clientY);if(c){drag=null;openCM(c,e.clientX,e.clientY)}else if(signAt(e.clientX,e.clientY)){drag=null;editSign()}}},550)}});
 cv.addEventListener('pointermove',e=>{if(ptr.has(e.pointerId))ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptr.size>=2){const[a,b]=[...ptr.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(pd&&d/pd>1.35){zoomStep(1);pd=d}else if(pd&&d/pd<.74){zoomStep(-1);pd=d}return}
   if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)drag.m=true;
@@ -347,7 +349,7 @@ cv.addEventListener('wheel',e=>{e.preventDefault();const n=performance.now();if(
 // ---- modo admin (escondido dos visitantes) ----
 let ADM=false;try{if(/[?&]admin/.test(location.search))localStorage.setItem('gatos_adm','1');if(/[?&]sair/.test(location.search))localStorage.removeItem('gatos_adm');ADM=localStorage.getItem('gatos_adm')==='1'}catch(e){}
 if(ADM)document.body.classList.add('adm');
-const listJSON=()=>{const d=cats.map(c=>[c.name||null,c.f,c.ty,c.pat]).concat(queue);return'[\n'+d.map(x=>JSON.stringify(x)).join(',\n')+'\n]\n'};
+const listJSON=()=>{const d=cats.map(c=>[c.name||null,c.f,c.ty,c.pat]).concat(queue);return'{\n"mundo": '+JSON.stringify(WORLD)+',\n"gatos": [\n'+d.map(x=>JSON.stringify(x)).join(',\n')+'\n]\n}\n'};
 const byName=n=>{n=String(n||'').trim().replace(/^@/,'').toLowerCase();return cats.find(c=>c.name&&c.name.toLowerCase()===n)};
 function ghCfg(force){let c=null;try{c=JSON.parse(localStorage.getItem('gatos_gh')||'null')}catch(e){}
   if(c&&!force)return c;
@@ -365,6 +367,25 @@ async function publish(){const cf=ghCfg(false);if(!cf)return;toast('Publicando..
 mtile('Seguidores','🚀','Publicar',publish,{main:1});
 mtile('Mais','🔑','GitHub',()=>{ghCfg(true)});mtile('Mais','📄','Copiar gatos.json',()=>copyText(listJSON(),'gatos.json copiado!'));
 
+
+// ---- placa com o nome do mundo ----
+let WORLD='Qual o nome deste mundo?';
+const SIGN={x:2,y:1};
+const SIGNS=(()=>{const c=mk(48,32),x=c.getContext('2d');x.fillStyle='rgba(0,0,0,.2)';x.fillRect(16,29,16,2);x.fillStyle='#8a5a2b';x.fillRect(22,16,4,13);x.fillStyle='#6f4527';x.fillRect(24,16,2,13);
+  x.fillStyle='#c98f4f';x.fillRect(1,1,46,15);x.fillStyle='#e2b36f';x.fillRect(1,1,46,2);x.fillStyle='#f6e3b4';x.fillRect(3,3,42,11);outline(c,'#2b2140');return c})();
+function wrapW(t,m){const o=[];let l='';for(const w of String(t).trim().split(/\s+/)){let q=w;while(q.length>m){if(l){o.push(l);l=''}o.push(q.slice(0,m));q=q.slice(m)}const n=l?l+' '+q:q;if(n.length>m){o.push(l);l=q}else l=n}if(l)o.push(l);return o.slice(0,3)}
+function drawSign(){if(Z<2)return;const sx=(SIGN.x-SIGN.y)*16+OX,sy=(SIGN.x+SIGN.y)*8+OY;if(sx<-40||sx>w+40||sy<-10||sy>h+40)return;
+  const L=wrapW(WORLD,14),mc=Math.max(1,...L.map(l=>l.length)),fs=Math.min(42*Z/mc,11*Z/(L.length*1.4));if(fs<5)return;
+  lx.font=Math.floor(fs)+'px "Press Start 2P",monospace';lx.textAlign='center';lx.textBaseline='middle';lx.fillStyle='#2b2140';
+  L.forEach((t,i)=>lx.fillText(t,sx*Z,(sy-27+8.5)*Z+(i-(L.length-1)/2)*fs*1.4));lx.textBaseline='alphabetic'}
+function signAt(cx,cy){const rc=cv.getBoundingClientRect(),X=(cx-rc.left)/Z,Y=(cy-rc.top)/Z,sx=(SIGN.x-SIGN.y)*16+OX,sy=(SIGN.x+SIGN.y)*8+OY;return X>=sx-24&&X<=sx+24&&Y>=sy-27&&Y<=sy+5}
+function editSign(){const v=prompt('Nome do mundo (até 40 letras):',WORLD);if(v===null)return;const t=v.trim().slice(0,40);if(!t)return;WORLD=t;touched()}
+// ---- tela cheia (só admin, ajuda na gravação) ----
+function toggleFS(){const d=document,e=d.documentElement,on=d.fullscreenElement||d.webkitFullscreenElement;
+  if(on){(d.exitFullscreen||d.webkitExitFullscreen).call(d);return}
+  const f=e.requestFullscreen||e.webkitRequestFullscreen;if(!f){toast('Este navegador não deixa usar tela cheia');return}
+  try{const p=f.call(e);if(p&&p.catch)p.catch(()=>toast('Não consegui entrar em tela cheia'))}catch(x){toast('Não consegui entrar em tela cheia')}}
+mtile('Mais','⛶','Tela cheia',toggleFS);mtile('Ilha','🪧','Nome do mundo',editSign);
 // ---- menu do botão direito (admin) ----
 let dirty=0;const cm=document.createElement('div');cm.id='cm';cm.className='pb';cm.hidden=true;document.body.appendChild(cm);
 function catAt(cx,cy){const rc=cv.getBoundingClientRect(),X=(cx-rc.left)/Z,Y=(cy-rc.top)/Z;let best=null,bd=1e9;
@@ -383,9 +404,11 @@ function openCM(c,x,y){cm.innerHTML='';const mkb=(t,fn,cls)=>{const b=document.c
   g.appendChild(mkb('🗑 Remover',function(){if(!this.dataset.arm){this.dataset.arm=1;this.textContent='Certeza?';return}cm.hidden=true;removeCat(c);touched()},'danger'));
   g.appendChild(mkb('🚀 Publicar',()=>{cm.hidden=true;publish()}));cm.appendChild(g);
   cm.hidden=false;const W=cm.offsetWidth,H=cm.offsetHeight;cm.style.left=Math.max(6,Math.min(x,innerWidth-W-6))+'px';cm.style.top=Math.max(6,Math.min(y,innerHeight-H-6))+'px'}
-cv.addEventListener('contextmenu',e=>{if(!ADM)return;e.preventDefault();const c=catAt(e.clientX,e.clientY);if(c)openCM(c,e.clientX,e.clientY);else cm.hidden=true});
+cv.addEventListener('contextmenu',e=>{if(!ADM)return;e.preventDefault();const c=catAt(e.clientX,e.clientY);if(c)openCM(c,e.clientX,e.clientY);else{cm.hidden=true;if(signAt(e.clientX,e.clientY))editSign()}});
 addEventListener('pointerdown',e=>{if(!cm.hidden&&!cm.contains(e.target))cm.hidden=true},true);addEventListener('keydown',e=>{if(e.key==='Escape')cm.hidden=true});
-async function loadList(){try{const r=await fetch('gatos.json?'+Date.now(),{cache:'no-store'});if(r.ok){const j=await r.json();if(Array.isArray(j)&&j.length&&j.every(Array.isArray))return j}}catch(e){}return DATA}
+async function loadList(){try{const r=await fetch('gatos.json?'+Date.now(),{cache:'no-store'});if(r.ok){const j=await r.json(),a=Array.isArray(j)?j:(j&&j.gatos);
+  if(j&&typeof j.mundo==='string'&&j.mundo.trim())WORLD=j.mundo.trim().slice(0,40);
+  if(Array.isArray(a)&&a.length&&a.every(Array.isArray))return a}}catch(e){}return DATA}
 SHEET.onload=()=>{initSheet();resize();loadList().then(L=>{Rt=Math.max(9,Math.sqrt(L.length)*1.1+5);build();L.forEach(r=>spawn(r));last=performance.now();requestAnimationFrame(frame)})};SHEET.src=SHEET_SRC;
 </script>
 </body>
