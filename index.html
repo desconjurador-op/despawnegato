@@ -356,14 +356,17 @@ function ghCfg(force){let c=null;try{c=JSON.parse(localStorage.getItem('gatos_gh
   const repo=prompt('Repositório do GitHub (usuario/repositorio):',c?c.repo:'');if(!repo)return null;
   const token=prompt('Token do GitHub (fine-grained, só este repo, permissão Contents: leitura e escrita). Fica salvo só neste aparelho:',c?c.token:'');if(!token)return null;
   const path=prompt('Caminho do arquivo no repositório:',c?c.path:'gatos.json')||'gatos.json';
-  c={repo:repo.trim(),token:token.trim(),path:path.trim()};try{localStorage.setItem('gatos_gh',JSON.stringify(c))}catch(e){}return c}
+  const rp=repo.trim().replace(/^https?:\/\/(www\.)?github\.com\//i,'').replace(/\.git$/i,'').replace(/^\/+|\/+$/g,''),tk=token.replace(/\s+/g,''),pt=path.trim().replace(/^\/+/,'')||'gatos.json';
+  if(!/^[\w.-]+\/[\w.-]+$/.test(rp)){toast('Repositório inválido. Use usuario/repositorio');return null}
+  if(!/^[A-Za-z0-9_]+$/.test(tk)){toast('O token tem caracteres estranhos. Copie de novo, só o token');return null}
+  c={repo:rp,token:tk,path:pt};try{localStorage.setItem('gatos_gh',JSON.stringify(c))}catch(e){}return c}
 async function publish(){const cf=ghCfg(false);if(!cf)return;toast('Publicando...');
   const u='https://api.github.com/repos/'+cf.repo+'/contents/'+cf.path,H={Authorization:'Bearer '+cf.token,Accept:'application/vnd.github+json'};
   try{let sha;const g=await fetch(u,{headers:H});if(g.ok)sha=(await g.json()).sha;else if(g.status!==404){toast('Erro '+g.status+' ao ler o GitHub. Confira repo e token (toque em GitHub)');return}
     const b={message:'Atualiza lista de gatinhos',content:btoa(unescape(encodeURIComponent(listJSON())))};if(sha)b.sha=sha;
     const p=await fetch(u,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify(b)});
     if(p.ok)dirty=0;toast(p.ok?'Publicado! O site atualiza em ~1 minuto':'Erro '+p.status+' ao salvar. Confira o token')}
-  catch(e){toast('Sem conexão com o GitHub')}}
+  catch(e){toast('Falhou: '+((e&&e.message)||e)+'. Se for "Failed to fetch", algo está bloqueando o GitHub (bloqueador, VPN, rede)')}}
 mtile('Seguidores','🚀','Publicar',publish,{main:1});
 mtile('Mais','🔑','GitHub',()=>{ghCfg(true)});mtile('Mais','📄','Copiar gatos.json',()=>copyText(listJSON(),'gatos.json copiado!'));
 
