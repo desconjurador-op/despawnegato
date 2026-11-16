@@ -47,4 +47,4 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ erro: 'não consegui gravar: ' + String((e && e.message) || e).slice(0, 160) });
   }
-}
+      }
